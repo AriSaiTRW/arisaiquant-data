@@ -14,17 +14,17 @@ response = requests.get(url)
 if response.status_code != 200:
     raise Exception(f"API request failed: {response.status_code} - {response.text}")
 
-data = response.json()
+json_response = response.json()
 
-if "data" not in data:
-    raise Exception(f"Unexpected API response: {data}")
+if "data" not in json_response:
+    raise Exception(f"Unexpected API response: {json_response}")
 
-df = pd.DataFrame(data["data"])
+df = pd.DataFrame(json_response["data"])
 
 df["CapMVRVCur"] = pd.to_numeric(df["CapMVRVCur"], errors="coerce")
 df = df.dropna()
 
-# Optional: compute Z-score of MVRV ratio
+# Rolling Z-score
 window = 730
 rolling_mean = df["CapMVRVCur"].rolling(window).mean()
 rolling_std = df["CapMVRVCur"].rolling(window).std()
