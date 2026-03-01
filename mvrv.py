@@ -1,39 +1,41 @@
 import requests
 import pandas as pd
 
-# -------------------------
-# Fetch Data from CoinMetrics
-# -------------------------
-
 url = "https://community-api.coinmetrics.io/v4/timeseries/asset-metrics"
 
 params = {
     "assets": "btc",
     "metrics": "CapMrktCurUSD,CapRealUSD",
-    "frequency": "1d"
+    "frequency": "1d",
+    "page_size": 10000   # REQUIRED
 }
 
 response = requests.get(url, params=params)
+
+if response.status_code != 200:
+    raise Exception(f"API request failed: {response.status_code} - {response.text}")
+
 data = response.json()
+
+if "data" not in data:
+    raise Exception(f"Unexpected API response: {data}")
 
 df = pd.DataFrame(data["data"])
 
-# Convert to numeric
-df["CapMrktCurUSD"] = pd.to_numeric(df["CapMrktCurUSD"])
-df["CapRealUSD"] = pd.to_numeric(df["CapRealUSD"])
+# Convert to numeric safely
+df["CapMrktCurUSD"] = pd.to_numeric(df["CapMrktCurUSD"], errors="coerce")
+df["CapRealUSD"] = pd.to_numeric(df["CapRealUSD"], errors="coerce")
 
-# -------------------------
-# Calculate MVRV Z-Score
-# -------------------------
+df = df.dropna()
 
-window = 730  # 2-year rolling window
+# ---- MVRV Z-Score (Glassnode-style rolling) ----
+window = 730
 
 spread = df["CapMrktCurUSD"] - df["CapRealUSD"]
 rolling_std = df["CapMrktCurUSD"].rolling(window).std()
 
 df["mvrv_z_score"] = spread / rolling_std
 
-# Clean output
 output = df[["time", "mvrv_z_score"]].rename(columns={"time": "date"})
 output = output.dropna()
 
