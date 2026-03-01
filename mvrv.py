@@ -7,7 +7,8 @@ params = {
     "assets": "btc",
     "metrics": "CapMrktCurUSD,CapRealUSD",
     "frequency": "1d",
-    "page_size": 10000   # REQUIRED
+    "start_time": "2011-01-01",   # REQUIRED
+    "page_size": 10000
 }
 
 response = requests.get(url, params=params)
@@ -17,20 +18,20 @@ if response.status_code != 200:
 
 data = response.json()
 
+print("DEBUG RESPONSE:", data)  # Temporary debug line
+
 if "data" not in data:
     raise Exception(f"Unexpected API response: {data}")
 
 df = pd.DataFrame(data["data"])
 
-# Convert to numeric safely
 df["CapMrktCurUSD"] = pd.to_numeric(df["CapMrktCurUSD"], errors="coerce")
 df["CapRealUSD"] = pd.to_numeric(df["CapRealUSD"], errors="coerce")
 
 df = df.dropna()
 
-# ---- MVRV Z-Score (Glassnode-style rolling) ----
+# Rolling Z-score
 window = 730
-
 spread = df["CapMrktCurUSD"] - df["CapRealUSD"]
 rolling_std = df["CapMrktCurUSD"].rolling(window).std()
 
